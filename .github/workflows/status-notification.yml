@@ -38,6 +38,8 @@ jobs:
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           NOTIFICATION_RECIPIENTS: ${{ secrets.NOTIFICATION_RECIPIENTS }}
+          NOTIFICATION_WEBHOOK_SECRET: ${{ secrets.NOTIFICATION_WEBHOOK_SECRET }}
+          RECIPIENTS_ENDPOINT: https://russia-nato-escalation-monitor.ponomarev-ao.chatgpt.site/api/notification-recipients
           RESEND_FROM: ${{ secrets.RESEND_FROM }}
           RESEND_REPLY_TO: ${{ secrets.RESEND_REPLY_TO }}
         run: node scripts/send-status-notification.mjs

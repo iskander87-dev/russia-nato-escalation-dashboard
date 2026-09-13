@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 const assessmentPath = new URL('../data/assessment.json', import.meta.url);
 const assessment = JSON.parse(await readFile(assessmentPath, 'utf8'));
 const sender = process.env.RESEND_FROM?.trim() || 'Russia-NATO Monitor <onboarding@resend.dev>';
-const recipients = (process.env.NOTIFICATION_RECIPIENTS ?? '')
+let recipients = (process.env.NOTIFICATION_RECIPIENTS ?? '')
   .split(/[;,\s]+/)
   .map((value) => value.trim())
   .filter(Boolean);
@@ -11,6 +11,16 @@ const recipients = (process.env.NOTIFICATION_RECIPIENTS ?? '')
 if (!process.env.RESEND_API_KEY) {
   throw new Error('RESEND_API_KEY is not configured.');
 }
+if (process.env.RECIPIENTS_ENDPOINT && process.env.NOTIFICATION_WEBHOOK_SECRET) {
+  const response = await fetch(process.env.RECIPIENTS_ENDPOINT, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.NOTIFICATION_WEBHOOK_SECRET}` }
+  });
+  if (!response.ok) throw new Error(`Recipient lookup failed: ${response.status} ${await response.text()}`);
+  const payload = await response.json();
+  recipients = Array.isArray(payload.recipients) ? payload.recipients : [];
+}
+
 if (!recipients.length) {
   throw new Error('NOTIFICATION_RECIPIENTS is not configured.');
 }

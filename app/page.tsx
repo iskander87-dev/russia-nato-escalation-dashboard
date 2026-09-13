@@ -50,27 +50,44 @@ export default function Home() {
   const [changedOnly,setChangedOnly]=useState(false);
   const [methodOpen,setMethodOpen]=useState(false);
   const [emailOpen,setEmailOpen]=useState(false);
-  const [emails,setEmails]=useState<string[]>([]);
+  const [emails,setEmails]=useState<{email:string; token?:string}[]>([]);
   const [emailInput,setEmailInput]=useState('');
   const [emailError,setEmailError]=useState('');
 
   useEffect(()=>{
     const saved=window.localStorage.getItem('russia-nato-notification-emails');
     if (saved) {
-      try { setEmails(JSON.parse(saved)); } catch { window.localStorage.removeItem('russia-nato-notification-emails'); }
+      try {
+        const parsed=JSON.parse(saved);
+        setEmails(Array.isArray(parsed) ? parsed.map(item=>typeof item==='string'?{email:item}:item).filter(item=>item?.email) : []);
+      } catch { window.localStorage.removeItem('russia-nato-notification-emails'); }
     }
   },[]);
 
-  const saveEmails=(next:string[])=>{
+  const saveEmails=(next:{email:string; token?:string}[])=>{
     setEmails(next);
     window.localStorage.setItem('russia-nato-notification-emails',JSON.stringify(next));
   };
-  const addEmail=(event:FormEvent)=>{
+  const addEmail=async(event:FormEvent)=>{
     event.preventDefault();
     const email=emailInput.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError('Введите корректный электронный адрес.'); return; }
-    if (emails.includes(email)) { setEmailError('Этот адрес уже добавлен.'); return; }
-    saveEmails([...emails,email]); setEmailInput(''); setEmailError('');
+    if (emails.some(item=>item.email===email&&item.token)) { setEmailError('Этот адрес уже подключён к рассылке.'); return; }
+    try {
+      const response=await fetch('/api/subscriptions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+      const result=await response.json() as {token?:string; error?:string};
+      if (!response.ok || !result.token) throw new Error(result.error||'Не удалось сохранить адрес.');
+      saveEmails([...emails.filter(item=>item.email!==email),{email,token:result.token}]);
+      setEmailInput(''); setEmailError('');
+    } catch (error) { setEmailError(error instanceof Error ? error.message : 'Не удалось сохранить адрес.'); }
+  };
+  const removeEmail=async(item:{email:string;token?:string})=>{
+    if (!item.token) { saveEmails(emails.filter(current=>current.email!==item.email)); return; }
+    try {
+      const response=await fetch('/api/subscriptions',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:item.token})});
+      if (!response.ok) throw new Error();
+      saveEmails(emails.filter(current=>current.email!==item.email));
+    } catch { setEmailError('Не удалось отключить адрес. Попробуйте ещё раз.'); }
   };
   const filtered=useMemo(()=>indicators.filter(x=>(statusFilter==='Все'||x.status===statusFilter)&&(areaFilter==='Все направления'||x.area===areaFilter)&&(!changedOnly||x.changed)),[statusFilter,areaFilter,changedOnly]);
   return <main>
@@ -97,6 +114,6 @@ export default function Home() {
 
     <section className="sources"><div><p className="eyebrow">Журнал проверок</p><h2>Ключевые события</h2></div><div className="source-list"><div><time>02.09.2026</time><p>Правительство Германии возложило на Россию ответственность за гибридную атаку на аэропорт Лейпциг/Галле.</p><Source id="leipzig"/></div><div><time>28.05.2026</time><p>Военный комитет НАТО: Eastern Sentry и Baltic Sentry ведутся как меры сдерживания.</p><Source id="east"/></div><div><time>18.06.2026</time><p>Регулярное заседание Nuclear Planning Group; открытые данные не подтверждают смену готовности российских сил.</p><Source id="nuclear"/></div></div></section>
     <footer><div><p className="eyebrow">Правило интерпретации</p><p>Жёсткая риторика сама по себе не повышает уровень. Отсутствие публичных данных не является доказательством отсутствия события.</p></div><div><p className="eyebrow">Ежедневное обновление</p><p>Проверка выполняется в 09:00 МСК; дашборд меняется только при существенных подтверждённых фактах.</p></div></footer>
-    {emailOpen&&<div className="modal-backdrop" role="presentation" onMouseDown={()=>setEmailOpen(false)}><section className="email-modal" role="dialog" aria-modal="true" aria-labelledby="email-title" onMouseDown={event=>event.stopPropagation()}><button className="modal-close" onClick={()=>setEmailOpen(false)} aria-label="Закрыть"><X/></button><div className="modal-icon"><MailPlus/></div><p className="eyebrow">Уведомления об изменении статуса</p><h2 id="email-title">Адреса получателей</h2><p className="modal-copy">Добавьте адреса для этого браузера. Фактическая рассылка включается после добавления защищённого списка получателей в настройках GitHub.</p><form onSubmit={addEmail}><label htmlFor="notification-email">Электронный адрес</label><div className="email-form"><input id="notification-email" value={emailInput} onChange={event=>{setEmailInput(event.target.value);setEmailError('')}} type="email" autoComplete="email" placeholder="name@example.com"/><button type="submit">Добавить</button></div>{emailError&&<p className="form-error" role="alert">{emailError}</p>}</form><div className="email-list">{emails.length===0?<p>Адреса пока не добавлены.</p>:emails.map(email=><div key={email}><span>{email}</span><button onClick={()=>saveEmails(emails.filter(item=>item!==email))} aria-label={`Удалить ${email}`}><X/>Удалить</button></div>)}</div><p className="local-note">Адреса в этом окне хранятся только на устройстве и их можно удалить. Чтобы уведомления действительно отправлялись, укажите `NOTIFICATION_RECIPIENTS` в секретах GitHub.</p></section></div>}
+    {emailOpen&&<div className="modal-backdrop" role="presentation" onMouseDown={()=>setEmailOpen(false)}><section className="email-modal" role="dialog" aria-modal="true" aria-labelledby="email-title" onMouseDown={event=>event.stopPropagation()}><button className="modal-close" onClick={()=>setEmailOpen(false)} aria-label="Закрыть"><X/></button><div className="modal-icon"><MailPlus/></div><p className="eyebrow">Уведомления об изменении статуса</p><h2 id="email-title">Адреса получателей</h2><p className="modal-copy">Добавленный адрес подключается к рассылке об изменении оценки. Адреса не публикуются и не отображаются другим посетителям.</p><form onSubmit={addEmail}><label htmlFor="notification-email">Электронный адрес</label><div className="email-form"><input id="notification-email" value={emailInput} onChange={event=>{setEmailInput(event.target.value);setEmailError('')}} type="email" autoComplete="email" placeholder="name@example.com"/><button type="submit">Добавить</button></div>{emailError&&<p className="form-error" role="alert">{emailError}</p>}</form><div className="email-list">{emails.length===0?<p>Адреса пока не добавлены.</p>:emails.map(item=><div key={item.email}><span>{item.email}</span>{!item.token&&<small>Добавьте заново, чтобы подключить к рассылке.</small>}<button onClick={()=>removeEmail(item)} aria-label={`Удалить ${item.email}`}><X/>Удалить</button></div>)}</div><p className="local-note">Список виден только в этом браузере; сам адрес хранится защищённо для рассылки. Удаление отключает его от будущих уведомлений.</p></section></div>}
   </main>;
 }
