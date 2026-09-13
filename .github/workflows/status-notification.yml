@@ -1,0 +1,43 @@
+name: Notify on assessment change
+
+on:
+  push:
+    branches: [main]
+    paths: [data/assessment.json]
+  workflow_dispatch:
+    inputs:
+      send_test:
+        description: Send the current assessment as a test
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Decide whether the assessment changed
+        id: changed
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.send_test }}" = "true" ]; then
+            echo "send=true" >> "$GITHUB_OUTPUT"
+          elif git show HEAD^:data/assessment.json >/tmp/previous.json 2>/dev/null && cmp -s data/assessment.json /tmp/previous.json; then
+            echo "send=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "send=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Send status notification
+        if: steps.changed.outputs.send == 'true'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFICATION_RECIPIENTS: ${{ secrets.NOTIFICATION_RECIPIENTS }}
+          RESEND_FROM: ${{ secrets.RESEND_FROM }}
+          RESEND_REPLY_TO: ${{ secrets.RESEND_REPLY_TO }}
+        run: node scripts/send-status-notification.mjs
