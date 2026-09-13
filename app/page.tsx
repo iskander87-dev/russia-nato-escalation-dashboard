@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronDown, CircleHelp, Clock3, ExternalLink, Filter, MailPlus, RefreshCw, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronDown, CircleHelp, Clock3, ExternalLink, Filter, MailPlus, ShieldCheck, X } from 'lucide-react';
 import assessment from '../data/assessment.json';
 
 type Status = 'Подтверждено' | 'Частично' | 'Не подтверждено' | 'Нет данных';
@@ -53,7 +53,6 @@ export default function Home() {
   const [emails,setEmails]=useState<string[]>([]);
   const [emailInput,setEmailInput]=useState('');
   const [emailError,setEmailError]=useState('');
-  const [manualCheck,setManualCheck]=useState<string | null>(null);
 
   useEffect(()=>{
     const saved=window.localStorage.getItem('russia-nato-notification-emails');
@@ -73,15 +72,10 @@ export default function Home() {
     if (emails.includes(email)) { setEmailError('Этот адрес уже добавлен.'); return; }
     saveEmails([...emails,email]); setEmailInput(''); setEmailError('');
   };
-  const runManualCheck=()=>{
-    Object.values(sources).forEach(source=>window.open(source.url,'_blank','noopener,noreferrer'));
-    setManualCheck(`Источники открыты для ручной проверки · ${new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(new Date())}`);
-  };
   const filtered=useMemo(()=>indicators.filter(x=>(statusFilter==='Все'||x.status===statusFilter)&&(areaFilter==='Все направления'||x.area===areaFilter)&&(!changedOnly||x.changed)),[statusFilter,areaFilter,changedOnly]);
   return <main>
     <div className="topline"/>
-    <header><div><p className="eyebrow">Ситуационный мониторинг · доказательная модель</p><h1>Россия — НАТО</h1></div><div className="header-tools"><div className="updated"><Clock3/><span>Оценка на <strong>{assessment.asOf}</strong><br/>Проверено: 09:00 МСК · 5 первоисточников</span></div><div className="quick-actions"><button className="outline-button" onClick={runManualCheck}><RefreshCw/>Обновить данные</button><button className="primary-button" onClick={()=>setEmailOpen(true)}><Bell/>Уведомления{emails.length>0&&<b>{emails.length}</b>}</button></div></div></header>
-    {manualCheck&&<div className="manual-check" role="status"><CheckCircle2/><span>{manualCheck}. После проверки внесите подтверждённые изменения в журнал и матрицу.</span><button onClick={()=>setManualCheck(null)} aria-label="Закрыть сообщение"><X/></button></div>}
+    <header><div><p className="eyebrow">Ситуационный мониторинг · доказательная модель</p><h1>Россия — НАТО</h1></div><div className="header-tools"><div className="updated"><Clock3/><span>Оценка на <strong>{assessment.asOf}</strong><br/>Проверено: 09:00 МСК · 5 первоисточников</span></div><div className="quick-actions"><button className="primary-button" onClick={()=>setEmailOpen(true)}><Bell/>Уведомления{emails.length>0&&<b>{emails.length}</b>}</button></div></div></header>
 
     <section className="hero">
       <article className="level-card"><div><p className="eyebrow">Текущая оценка</p><h2>Уровень {assessment.level} <small>из 7</small></h2><h3>{assessment.label}</h3><p>Подтверждены гибридные и воздушные риски. Признаков устойчивой прямой военной фазы в публичной базе недостаточно.</p><div className="meta"><span>Уверенность: <b>{assessment.confidence}</b></span><span>Последний факт: <b>{assessment.lastFact}</b></span></div></div><div className="score"><b>{assessment.score}</b><span>/ 7</span><i>{assessment.color}</i></div></article>
