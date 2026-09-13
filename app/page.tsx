@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { AlertTriangle, ArrowUpRight, CheckCircle2, ChevronDown, CircleHelp, Clock3, ExternalLink, Filter, ShieldCheck } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, ArrowUpRight, Bell, CheckCircle2, ChevronDown, CircleHelp, Clock3, ExternalLink, Filter, MailPlus, RefreshCw, ShieldCheck, X } from 'lucide-react';
 
 type Status = 'Подтверждено' | 'Частично' | 'Не подтверждено' | 'Нет данных';
 type Indicator = { id:number; name:string; area:string; status:Status; date:string; source:string; note:string; changed?:boolean };
@@ -48,10 +48,39 @@ export default function Home() {
   const [areaFilter,setAreaFilter]=useState('Все направления');
   const [changedOnly,setChangedOnly]=useState(false);
   const [methodOpen,setMethodOpen]=useState(false);
+  const [emailOpen,setEmailOpen]=useState(false);
+  const [emails,setEmails]=useState<string[]>([]);
+  const [emailInput,setEmailInput]=useState('');
+  const [emailError,setEmailError]=useState('');
+  const [manualCheck,setManualCheck]=useState<string | null>(null);
+
+  useEffect(()=>{
+    const saved=window.localStorage.getItem('russia-nato-notification-emails');
+    if (saved) {
+      try { setEmails(JSON.parse(saved)); } catch { window.localStorage.removeItem('russia-nato-notification-emails'); }
+    }
+  },[]);
+
+  const saveEmails=(next:string[])=>{
+    setEmails(next);
+    window.localStorage.setItem('russia-nato-notification-emails',JSON.stringify(next));
+  };
+  const addEmail=(event:FormEvent)=>{
+    event.preventDefault();
+    const email=emailInput.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError('Введите корректный электронный адрес.'); return; }
+    if (emails.includes(email)) { setEmailError('Этот адрес уже добавлен.'); return; }
+    saveEmails([...emails,email]); setEmailInput(''); setEmailError('');
+  };
+  const runManualCheck=()=>{
+    Object.values(sources).forEach(source=>window.open(source.url,'_blank','noopener,noreferrer'));
+    setManualCheck(`Источники открыты для ручной проверки · ${new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(new Date())}`);
+  };
   const filtered=useMemo(()=>indicators.filter(x=>(statusFilter==='Все'||x.status===statusFilter)&&(areaFilter==='Все направления'||x.area===areaFilter)&&(!changedOnly||x.changed)),[statusFilter,areaFilter,changedOnly]);
   return <main>
     <div className="topline"/>
-    <header><div><p className="eyebrow">Ситуационный мониторинг · доказательная модель</p><h1>Россия — НАТО</h1></div><div className="updated"><Clock3/><span>Оценка на <strong>04.09.2026</strong><br/>Проверено: 09:00 МСК · 5 первоисточников</span></div></header>
+    <header><div><p className="eyebrow">Ситуационный мониторинг · доказательная модель</p><h1>Россия — НАТО</h1></div><div className="header-tools"><div className="updated"><Clock3/><span>Оценка на <strong>04.09.2026</strong><br/>Проверено: 09:00 МСК · 5 первоисточников</span></div><div className="quick-actions"><button className="outline-button" onClick={runManualCheck}><RefreshCw/>Обновить данные</button><button className="primary-button" onClick={()=>setEmailOpen(true)}><Bell/>Уведомления{emails.length>0&&<b>{emails.length}</b>}</button></div></div></header>
+    {manualCheck&&<div className="manual-check" role="status"><CheckCircle2/><span>{manualCheck}. После проверки внесите подтверждённые изменения в журнал и матрицу.</span><button onClick={()=>setManualCheck(null)} aria-label="Закрыть сообщение"><X/></button></div>}
 
     <section className="hero">
       <article className="level-card"><div><p className="eyebrow">Текущая оценка</p><h2>Уровень 3 <small>из 7</small></h2><h3>Гибридное давление</h3><p>Подтверждены гибридные и воздушные риски. Признаков устойчивой прямой военной фазы в публичной базе недостаточно.</p><div className="meta"><span>Уверенность: <b>средняя</b></span><span>Последний факт: <b>02.09.2026</b></span></div></div><div className="score"><b>3,6</b><span>/ 7</span><i>ЖЁЛТЫЙ</i></div></article>
@@ -73,5 +102,6 @@ export default function Home() {
 
     <section className="sources"><div><p className="eyebrow">Журнал проверок</p><h2>Ключевые события</h2></div><div className="source-list"><div><time>02.09.2026</time><p>Правительство Германии возложило на Россию ответственность за гибридную атаку на аэропорт Лейпциг/Галле.</p><Source id="leipzig"/></div><div><time>28.05.2026</time><p>Военный комитет НАТО: Eastern Sentry и Baltic Sentry ведутся как меры сдерживания.</p><Source id="east"/></div><div><time>18.06.2026</time><p>Регулярное заседание Nuclear Planning Group; открытые данные не подтверждают смену готовности российских сил.</p><Source id="nuclear"/></div></div></section>
     <footer><div><p className="eyebrow">Правило интерпретации</p><p>Жёсткая риторика сама по себе не повышает уровень. Отсутствие публичных данных не является доказательством отсутствия события.</p></div><div><p className="eyebrow">Ежедневное обновление</p><p>Проверка выполняется в 09:00 МСК; дашборд меняется только при существенных подтверждённых фактах.</p></div></footer>
+    {emailOpen&&<div className="modal-backdrop" role="presentation" onMouseDown={()=>setEmailOpen(false)}><section className="email-modal" role="dialog" aria-modal="true" aria-labelledby="email-title" onMouseDown={event=>event.stopPropagation()}><button className="modal-close" onClick={()=>setEmailOpen(false)} aria-label="Закрыть"><X/></button><div className="modal-icon"><MailPlus/></div><p className="eyebrow">Уведомления об изменении статуса</p><h2 id="email-title">Адреса получателей</h2><p className="modal-copy">Добавьте адреса, на которые нужно направлять уведомления при подтверждённом изменении оценки.</p><form onSubmit={addEmail}><label htmlFor="notification-email">Электронный адрес</label><div className="email-form"><input id="notification-email" value={emailInput} onChange={event=>{setEmailInput(event.target.value);setEmailError('')}} type="email" autoComplete="email" placeholder="name@example.com"/><button type="submit">Добавить</button></div>{emailError&&<p className="form-error" role="alert">{emailError}</p>}</form><div className="email-list">{emails.length===0?<p>Адреса пока не добавлены.</p>:emails.map(email=><div key={email}><span>{email}</span><button onClick={()=>saveEmails(emails.filter(item=>item!==email))} aria-label={`Удалить ${email}`}><X/></button></div>)}</div><p className="local-note">Список хранится в браузере этого устройства. Для фактической рассылки нужен подключённый почтовый сервис — адреса не передаются на сайт автоматически.</p></section></div>}
   </main>;
 }
