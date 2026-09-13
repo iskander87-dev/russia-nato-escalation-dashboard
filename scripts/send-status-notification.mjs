@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 const assessmentPath = new URL('../data/assessment.json', import.meta.url);
 const assessment = JSON.parse(await readFile(assessmentPath, 'utf8'));
+const sender = process.env.RESEND_FROM?.trim() || 'Russia-NATO Monitor <onboarding@resend.dev>';
 const recipients = (process.env.NOTIFICATION_RECIPIENTS ?? '')
   .split(/[;,\s]+/)
   .map((value) => value.trim())
@@ -34,7 +35,7 @@ const response = await fetch('https://api.resend.com/emails', {
     'Idempotency-Key': `russia-nato-${assessment.notificationKey}`
   },
   body: JSON.stringify({
-    from: process.env.RESEND_FROM ?? 'Russia-NATO Monitor <onboarding@resend.dev>',
+    from: sender,
     to: recipients,
     ...(process.env.RESEND_REPLY_TO ? { reply_to: process.env.RESEND_REPLY_TO } : {}),
     subject,
