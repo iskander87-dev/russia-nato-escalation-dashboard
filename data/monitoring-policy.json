@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "lookbackHours": 96,
+  "requiredSourceGroups": [
+    "NATO newsroom and transcripts",
+    "Defence and foreign ministries of Estonia, Latvia, Lithuania, Poland, Finland, Sweden, Denmark, Norway, Germany and Italy",
+    "National armed-forces pressrooms for the Baltic Sea, North Atlantic and eastern flank",
+    "Official government and intelligence-service warnings"
+  ],
+  "mandatoryIncidentTerms": [
+    "airspace violation",
+    "intercepted",
+    "neutralized",
+    "shot down",
+    "flare",
+    "warning shot",
+    "military aircraft",
+    "warship",
+    "unmanned aircraft",
+    "explosive device"
+  ],
+  "assessmentRules": {
+    "separateDimensions": [
+      "incident occurrence",
+      "platform or actor attribution",
+      "intent",
+      "operational consequence"
+    ],
+    "level4": "A confirmed dangerous military interaction involving a NATO state, or NATO use of force against an airborne or maritime target, especially when reinforced by a second incident in the rolling lookback window.",
+    "level5": "A sustained operational pattern supported by force concentration, logistics, aviation dispersal, air-defence or missile redeployment, field medical support or other evidence of preparation for continuing operations.",
+    "uncertainAttribution": "Uncertain origin or intent lowers confidence and caps the score, but does not erase a confirmed military incident."
+  }
+}
