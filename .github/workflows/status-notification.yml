@@ -22,14 +22,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - name: Decide whether the assessment changed
+      - name: Decide whether the public assessment changed
         id: changed
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.send_test }}" = "true" ]; then
             echo "send=true" >> "$GITHUB_OUTPUT"
-          elif git show HEAD^:data/assessment.json >/tmp/previous.json 2>/dev/null && cmp -s data/assessment.json /tmp/previous.json; then
-            echo "send=false" >> "$GITHUB_OUTPUT"
+          elif git show HEAD^:data/assessment.json >/tmp/previous.json 2>/dev/null; then
+            if node -e "const fs=require('fs');const previous=JSON.parse(fs.readFileSync('/tmp/previous.json','utf8'));const current=JSON.parse(fs.readFileSync('data/assessment.json','utf8'));process.exit(previous.notificationKey===current.notificationKey?0:1)"; then
+              echo "send=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "send=true" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "send=true" >> "$GITHUB_OUTPUT"
           fi
